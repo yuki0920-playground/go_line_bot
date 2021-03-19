@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	// LINE SDK
 	"github.com/line/line-bot-sdk-go/linebot"
@@ -68,13 +69,15 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 		if event.Type == linebot.EventTypeMessage {
 			// メッセージを変数に入れてメッセージの種類ごとに判定する
 			switch message := event.Message.(type) {
-			case *linebot.TextMessage:
+			case *linebot.TextMessage: // テキストメッセージの場合
 				replyMessage := message.Text
 				// 返信用トークンをつけてメッセージを送信する
 				_, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do()
 				if err != nil {
 					log.Print(err)
 				}
+			case *linebot.LocationMessage: // 位置情報の場合
+				sendRestoInfo(bot, event)
 			}
 		}
 	}
@@ -84,5 +87,19 @@ func envLoad() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
+	}
+}
+
+func sendRestoInfo(bot *linebot.Client, e *linebot.Event) {
+	msg := e.Message.(*linebot.LocationMessage)
+
+	lat := strconv.FormatFloat(msg.Latitude, 'f', 2, 64)
+	lng := strconv.FormatFloat(msg.Longitude, 'f', 2, 64)
+
+	replyMsg := fmt.Sprintf("緯度: %s\n軽度: %s", lat, lng)
+
+	_, err := bot.ReplyMessage(e.ReplyToken, linebot.NewTextMessage(replyMsg)).Do()
+	if err != nil {
+		log.Print(err)
 	}
 }
