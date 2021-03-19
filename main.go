@@ -91,6 +91,7 @@ func envLoad() {
 }
 
 func sendRestoInfo(bot *linebot.Client, e *linebot.Event) {
+	// e.Message の型が *linebot.LocationMessage であるかのチェック(型アサーション)をしつつ変数に代入
 	msg := e.Message.(*linebot.LocationMessage)
 
 	lat := strconv.FormatFloat(msg.Latitude, 'f', 2, 64)
