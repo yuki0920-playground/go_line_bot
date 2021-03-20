@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"unicode/utf8"
 
 	// LINE SDK
 	"github.com/line/line-bot-sdk-go/linebot"
@@ -100,9 +101,12 @@ func sendRestoInfo(bot *linebot.Client, e *linebot.Event) {
 	lng := strconv.FormatFloat(msg.Longitude, 'f', 2, 64)
 
 	replyMsg := getRestoInfo(lat, lng)
+	res := linebot.NewTemplateMessage(
+		"レストラン一覧",
+		linebot.NewCarouselTemplate(replyMsg...).WithImageOptions("rectangle", "cover"),
+	)
 
-	_, err := bot.ReplyMessage(e.ReplyToken, linebot.NewTextMessage(replyMsg)).Do()
-	if err != nil {
+	if _, err := bot.ReplyMessage(e.ReplyToken, res).Do(); err != nil {
 		log.Print(err)
 	}
 }
@@ -121,9 +125,27 @@ type results struct {
 type shop struct {
 	Name    string `json:name`
 	Address string `json:address`
+	Photo   photo  `json:"photo"`
+	URLS    urls   `json:"urls"`
 }
 
-func getRestoInfo(lat string, lng string) string {
+// レスポンスのJSONとのマッピングその4
+type photo struct {
+	Mobile mobile `json:"mobile"`
+}
+
+// レスポンスのJSONとのマッピングその5
+type mobile struct {
+	L string `json:"l"`
+}
+
+// レスポンスのJSONとのマッピングその6
+type urls struct {
+	PC string `json:"pc"`
+}
+
+// 緯度と経度を受け取りカルーセルのカラムを配列で返す
+func getRestoInfo(lat string, lng string) []*linebot.CarouselColumn {
 	apikey := os.Getenv("HOTPEPPER_API_KEY")
 
 	url := fmt.Sprintf(
@@ -154,10 +176,22 @@ func getRestoInfo(lat string, lng string) string {
 		log.Fatal(err)
 	}
 
-	info := ""
+	var ccs []*linebot.CarouselColumn
 	for _, shop := range data.Results.Shop {
-		info += shop.Name + "\n" + shop.Address + "\n\n"
+		addr := shop.Address
+		// 住所は60字を超えるばあいは60字まで
+		if 60 < utf8.RuneCountInString(addr) {
+			addr = string([]rune(addr)[:60])
+		}
+
+		cc := linebot.NewCarouselColumn(
+			shop.Photo.Mobile.L,
+			shop.Name,
+			addr,
+			linebot.NewURIAction("ホットペッパーで開く", shop.URLS.PC),
+		).WithImageOptions("#FFFFFF")
+		ccs = append(ccs, cc)
 	}
 
-	return info
+	return ccs
 }
