@@ -118,13 +118,13 @@ type response struct {
 
 // レスポンスのJSONとのマッピングその2
 type results struct {
-	Shop []shop `json: "shop"`
+	Shop []shop `json:"shop"`
 }
 
 // レスポンスのJSONとのマッピングその3
 type shop struct {
-	Name    string `json:name`
-	Address string `json:address`
+	Name    string `json:"name"`
+	Address string `json:"address"`
 	Photo   photo  `json:"photo"`
 	URLS    urls   `json:"urls"`
 }
