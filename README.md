@@ -19,3 +19,7 @@ ngrok http 8080
 ```
 go run main.go
 ```
+
+## エンドポイント
+- `/` `Hello, World` を表示
+- `/callback` LINEBOT 用
