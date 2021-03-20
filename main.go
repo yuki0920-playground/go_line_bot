@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -97,10 +99,65 @@ func sendRestoInfo(bot *linebot.Client, e *linebot.Event) {
 	lat := strconv.FormatFloat(msg.Latitude, 'f', 2, 64)
 	lng := strconv.FormatFloat(msg.Longitude, 'f', 2, 64)
 
-	replyMsg := fmt.Sprintf("緯度: %s\n軽度: %s", lat, lng)
+	replyMsg := getRestoInfo(lat, lng)
 
 	_, err := bot.ReplyMessage(e.ReplyToken, linebot.NewTextMessage(replyMsg)).Do()
 	if err != nil {
 		log.Print(err)
 	}
+}
+
+// レスポンスのJSONとのマッピングその1
+type response struct {
+	Results results `json: "results"`
+}
+
+// レスポンスのJSONとのマッピングその2
+type results struct {
+	Shop []shop `json: "shop"`
+}
+
+// レスポンスのJSONとのマッピングその3
+type shop struct {
+	Name    string `json:name`
+	Address string `json:address`
+}
+
+func getRestoInfo(lat string, lng string) string {
+	apikey := os.Getenv("HOTPEPPER_API_KEY")
+
+	url := fmt.Sprintf(
+		"https://webservice.recruit.co.jp/hotpepper/gourmet/v1/?format=json&key=%s&lat=%s&lng=%s",
+		apikey,
+		lat,
+		lng,
+	)
+	log.Print("Request URL:", url)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// レスポンスが存在する場合は処理終了時に HTTP Response Body を閉じる
+	defer resp.Body.Close()
+
+	// レスポンスボディから読み込む
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var data response
+	// jsonを構造体dataに変換する
+	if err := json.Unmarshal(body, &data); err != nil {
+		log.Fatal(err)
+	}
+
+	info := ""
+	for _, shop := range data.Results.Shop {
+		info += shop.Name + "\n" + shop.Address + "\n\n"
+	}
+
+	return info
 }
